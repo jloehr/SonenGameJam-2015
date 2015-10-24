@@ -2,6 +2,7 @@
     Canvas: null,
     Context: null,
     FixedTimestep: 30,
+    GameLoop : null,
     GrowMap: null,
     Background: null,
     FrameCounter: 0,
@@ -10,8 +11,20 @@
     {
         this.SetupCanvas();
         this.GrowMap = new GrowMap(this.Canvas, this.Context);
+        
+        this.Canvas.addEventListener("pointerdown", function (event) { Game.OnPointerDown(event) });
 
-        window.setInterval(function () { Game.Tick(); }, this.FixedTimestep);
+        this.Draw();
+
+        this.GameLoop = window.setInterval(function () { Game.Tick(); }, this.FixedTimestep);
+        //window.setTimeout(function () { Game.Finit(); }, 15000);
+    },
+
+    Finit : function()
+    {
+        clearInterval(this.GameLoop);
+        this.GameLoop = null;
+        console.log("End!");
     },
 
     SetupCanvas : function()

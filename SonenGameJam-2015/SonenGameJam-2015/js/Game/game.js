@@ -3,6 +3,12 @@
         Size: 50,
         MaxOvergrowth: 0.75,
     },
+ 
+    Generator: {
+        Size: 30,
+        MaxOvergrowth: 0.75,
+        Range: 100,
+    },
 }
 
 var Game = {
@@ -19,9 +25,11 @@ var Game = {
 
     Buildings: [],
     Towers: [],
+    Generators: [],
 
     LaserSkill: null,
     TowerBuildSkill: null,
+    GeneratorBuildSkill: null,
     ActiveSkill: null,
 
     PointerDown: false,
@@ -34,6 +42,7 @@ var Game = {
 
         this.LaserSkill = new LaserSkill(this.Towers);
         this.TowerBuildSkill = new BuildTowerSkill(this.Towers, this.Buildings, this.GrowMap);
+        this.GeneratorBuildSkill = new BuildGeneratorSkill(this.Generators, this.Towers, this.Buildings, this.GrowMap);
         
         this.Canvas.addEventListener("mousedown", function (event) { Game.OnPointerDown(event) });
         this.Canvas.addEventListener("mousemove", function (event) { Game.OnPointerMove(event) });
@@ -60,6 +69,10 @@ var Game = {
         var NewTower = new Tower(X, Y, this.GrowMap)
         this.Towers.push(NewTower);
         this.Buildings.push(NewTower);
+
+        var NewGenerator = new Generator(X, Y + GlobalSettings.Tower.Size / 2 + GlobalSettings.Generator.Size / 2 + 10, NewTower, this.GrowMap);
+        this.Generators.push(NewGenerator);
+        this.Buildings.push(NewGenerator);
     },
 
     Finit : function()
@@ -96,9 +109,10 @@ var Game = {
     {
         this.GrowMap.Update();
 
-        for (var i = 0; i < this.Towers.length; i++) {
-            this.Towers[i].Update()
+        for (var i = 0; i < this.Buildings.length; i++) {
+            this.Buildings[i].Update()
         }
+
 
     },
 
@@ -106,8 +120,8 @@ var Game = {
     {
         this.GrowMap.Draw(this.Background);
 
-        for (var i = 0; i < this.Towers.length; i++) {
-            this.Towers[i].Draw(this.Context);
+        for (var i = 0; i < this.Buildings.length; i++) {
+            this.Buildings[i].Draw(this.Context);
         }
 
 
@@ -424,6 +438,21 @@ function Building(X, Y, Width, Height, GrowMap, MaxOvergrowth)
         return ((Math.abs(X - this.X) > (Width/2 + this.Width/2)) || (Math.abs(Y - this.Y) > (Height/2 + this.Height/2)));
     }
 
+    this.Update = function()
+    {
+
+    }
+    
+    this.Draw = function(Context)
+    {
+        this.DrawOutline(Context);
+    }
+
+    this.DrawOutline = function(Context)
+    {
+        Context.strokeStyle = "black";
+        Context.strokeRect(this.X - this.Width / 2, this.Y - this.Height / 2, this.Width, this.Height);
+    }
 }
 
 function Tower(X,Y, GrowMap)
@@ -437,7 +466,6 @@ function Tower(X,Y, GrowMap)
     this.MaxEnergy = 100;
     this.Energy = this.MaxEnergy;
     this.EnergyDrain = 1;
-    this.EnergyRegain = 0.35;
 
     this.Constructor = function()
     {
@@ -446,16 +474,17 @@ function Tower(X,Y, GrowMap)
 
     this.Update = function()
     {
-        this.Energy = Math.min(this.MaxEnergy, this.Energy + this.EnergyRegain);
+
     }
 
     this.Draw = function(Context)
     {
+        this.DrawOutline(Context);
+
         var TWidth = this.Width * 0.3;
         var THeight = this.Height * 0.3;
         Context.strokeStyle = "black";
         Context.beginPath()
-        Context.rect(this.X - this.Width / 2, this.Y - this.Height / 2, this.Width, this.Height);
         Context.moveTo(this.X - TWidth, this.Y - THeight);
         Context.lineTo(this.X + TWidth, this.Y - THeight);
         Context.moveTo(this.X, this.Y - THeight);
@@ -514,14 +543,48 @@ function Tower(X,Y, GrowMap)
         this.GrowMap.ClearArea(X, Y);
         this.LazerTarget = { X: X, Y: Y };
         this.Energy -= this.EnergyDrain;
-
-        return !this.Active;
     }
 
-    this.Fire = function(X, Y)
+    this.Constructor();
+}
+
+function Generator(X, Y, Tower, GrowMap)
+{
+    this.__proto__ = new Building(X, Y, GlobalSettings.Generator.Size, GlobalSettings.Generator.Size, GrowMap, GlobalSettings.Generator.MaxOvergrowth);
+
+    this.Tower = Tower;
+
+    this.EnergyProduced = 0.2;
+
+    this.Constructor = function () {
+
+    }
+    
+    this.Draw = function(Context)
     {
-        this.GrowMap.ClearArea(X, Y);
-        this.LazerTarget = { X: X, Y: Y };
+        this.DrawOutline(Context);
+
+        var Width = this.Width * 0.2;
+        var Height = this.Height * 0.3;
+        Context.strokeStyle = "black";
+        Context.beginPath()
+        Context.arc(this.X, this.Y, this.Width * 0.4, Math.PI*1.7, 0, true);
+        Context.lineTo(this.X, this.Y);
+        Context.stroke();
+
+        Context.strokeStyle = "lightblue";
+        Context.beginPath()
+        Context.moveTo(this.X, this.Y);
+        Context.lineTo(this.Tower.X, this.Tower.Y);
+        Context.stroke();
+    }
+
+    this.Update = function()
+    {
+        if (!this.CheckForOvergrow())
+        {
+            this.Tower.Energy = Math.min(this.Tower.MaxEnergy, this.Tower.Energy + this.EnergyProduced);
+        }
     }
 
     this.Constructor();
@@ -633,8 +696,53 @@ function BuildTowerSkill(Towers, Buildings, GrowMap)
             var NewTower = new Tower(X, Y, this.GrowMap);
             this.Towers.push(NewTower);
             this.Buildings.push(NewTower);
+        }
+    }
+}
+
+function BuildGeneratorSkill(Generators, Towers, Buildings, GrowMap)
+{
+    this.__proto__ = new Skill("BuildGeneratorSkill", this);
+    this.Buildings = Buildings;
+    this.Generators = Generators;
+    this.Towers = Towers;
+    this.GrowMap = GrowMap;
+
+
+    this.PointerUp = function (event) {
+        var X = event.clientX;
+        var Y = event.clientY;
+
+        var ValidPlace = Util.CheckBuildingPlace(X, Y, GlobalSettings.Generator.Size, GlobalSettings.Generator.Size, this.Buildings);
+
+        var ClosestTower = this.GetClosestTower(X, Y);
+
+        ValidPlace = ValidPlace && (ClosestTower != null);
+
+        if (ValidPlace) {
+            var NewGenerator = new Generator(X, Y, ClosestTower, this.GrowMap);
+            this.Generators.push(NewGenerator);
+            this.Buildings.push(NewGenerator);
+        }
     }
 
+    this.GetClosestTower = function(X,Y)
+    {
+        var Tower = null;
+        var ClosestDistance = Number.MAX_VALUE;
 
+        for (var i = 0; i < Towers.length; i++)
+        {
+            var CurrentTower = Towers[i];
+            var Distance = Math.sqrt(Math.pow(X - CurrentTower.X, 2) + Math.pow(Y - CurrentTower.Y, 2));
+
+            if((Distance < GlobalSettings.Generator.Range) && (Distance < ClosestDistance))
+            {
+                Tower = CurrentTower;
+                ClosestDistance = Distance;
+            }
+        }
+
+        return Tower;
     }
 }

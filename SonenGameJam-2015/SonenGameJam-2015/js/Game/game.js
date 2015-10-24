@@ -7,21 +7,42 @@
     Background: null,
     FrameCounter: 0,
 
+    Tower: [],
+
+    LaserSkill: null,
+    ActiveSkill: null,
+
     PointerDown: false,
 
     Init: function()
     {
         this.SetupCanvas();
         this.GrowMap = new GrowMap(this.Canvas, this.Context);
+        this.LaserSkill = new LaserSkill(this.Tower);
         
         this.Canvas.addEventListener("mousedown", function (event) { Game.OnPointerDown(event) });
         this.Canvas.addEventListener("mousemove", function (event) { Game.OnPointerMove(event) });
         this.Canvas.addEventListener("mouseup", function (event) { Game.OnPointerUp(event) });
 
+        this.ActiveSkill = this.LaserSkill;
+
+        this.Start();
+
         this.Draw();
 
         this.GameLoop = window.setInterval(function () { Game.Tick(); }, this.FixedTimestep);
         //window.setTimeout(function () { Game.Finit(); }, 15000);
+    },
+
+    Start: function()
+    {
+        var X = Math.round(this.Canvas.width / 2);
+        var Y = Math.round(this.Canvas.height / 2);
+
+        this.GrowMap.ClearAreaWithRangeAndSmooth(X, Y, 100, 35);
+
+        this.Tower.push(new Tower(X, Y, this.GrowMap));
+        this.Tower.push(new Tower(350, 550, this.GrowMap));
     },
 
     Finit : function()
@@ -62,12 +83,16 @@
     Draw : function()
     {
         this.GrowMap.Draw(this.Background);
+
+        for (var i = 0; i < this.Tower.length; i++) {
+            this.Tower[i].Draw(this.Context);
+        }
     },
 
     OnPointerDown:function(event)
     {
         this.PointerDown = true;
-        this.GrowMap.ClearArea(event.clientX, event.clientY);
+        this.ActiveSkill.PointerDown(event);
 
     },
 
@@ -75,13 +100,14 @@
     {
         if (this.PointerDown)
         {
-            this.GrowMap.ClearArea(event.clientX, event.clientY);
+            this.ActiveSkill.PointerMove(event);
         }
     },
 
     OnPointerUp : function(event)
     {
         this.PointerDown = false;
+        this.ActiveSkill.PointerUp(event);
     }
 }
 
@@ -128,12 +154,6 @@ function GrowMap(Canvas, Context)
         this.Growth.fill(1);
 
         this.CreateClearStencil();
-
-        var X = Math.round(this.Canvas.width / 2);
-        var Y = Math.round(this.Canvas.height / 2);
-
-        this.ClearAreaWithRangeAndSmooth(X, Y, 100, 35);
-
     }
 
     this.Draw = function(Background)
@@ -313,4 +333,123 @@ function GrowMap(Canvas, Context)
     }
 
     this.Constructor();
+}
+
+function Tower(X,Y, GrowMap)
+{
+    this.X = X;
+    this.Y = Y;
+    this.GrowMap = GrowMap;
+
+    this.Range = 150;
+    this.Size = 50;
+
+    this.LazerTarget = null;
+
+    this.Constructor = function()
+    {
+
+    }
+
+    this.Draw = function(Context)
+    {
+        var TWidth = this.Size / 3;
+        var THeight = this.Size * 1 / 3;
+        Context.strokeStyle = "black";
+        Context.beginPath()
+        Context.rect(this.X - this.Size / 2, this.Y - this.Size/2, this.Size, this.Size);
+        Context.moveTo(this.X - TWidth, this.Y - THeight);
+        Context.lineTo(this.X + TWidth, this.Y - THeight);
+        Context.moveTo(this.X, this.Y - THeight);
+        Context.lineTo(this.X, this.Y + THeight);
+        Context.stroke();
+
+        if (this.LazerTarget)
+        {
+            Context.strokeStyle = "orange";
+            Context.beginPath()
+            Context.moveTo(this.X, this.Y);
+            Context.lineTo(this.LazerTarget.X, this.LazerTarget.Y);
+            Context.stroke();
+
+            this.LazerTarget = null;
+        }
+    }
+
+    this.InRange = function(X, Y)
+    {
+        var Range = Math.sqrt(Math.pow(this.X - X, 2) + Math.pow(this.Y - Y, 2));
+
+        return (Range < this.Range) ? Range : NaN;
+    }
+
+    this.GetShootingValue = function(X, Y)
+    {
+        return this.InRange(X, Y);
+    }
+
+    this.Fire = function(X, Y)
+    {
+        this.GrowMap.ClearArea(X, Y);
+        this.LazerTarget = { X: X, Y: Y };
+    }
+
+    this.Constructor();
+}
+
+function Skill()
+{
+    this.PointerDown = function(event)
+    {
+
+    }
+
+    this.PointerMove = function(event)
+    {
+
+    }
+
+    this.PointerUp = function(event)
+    {
+
+    }
+}
+
+function LaserSkill(Tower)
+{
+    this.__proto__ = new Skill();
+    this.Tower = Tower;
+
+    this.PointerDown = function (event) {
+        this.Fire(event);
+    }
+
+    this.PointerMove = function (event) {
+        this.Fire(event);
+    }
+
+    this.Fire = function(event)
+    {
+        var BestTower = this.GetBestTower(event.clientX, event.clientY);
+        if (BestTower != null) {
+            BestTower.Fire(event.clientX, event.clientY);
+        }
+    }
+
+    this.GetBestTower = function(X, Y)
+    {
+        var SmallestRange = Number.MAX_VALUE;
+        var BestIndex = NaN;
+        for (var i = 0; i < this.Tower.length; i++)
+        {
+            var Range = this.Tower[i].GetShootingValue(X, Y);
+            if((Range != NaN) && (Range < SmallestRange))
+            {
+                SmallestRange = Range;
+                BestIndex = i;
+            }
+        }
+
+        return (BestIndex != NaN) ? this.Tower[BestIndex] : null;
+    }
 }

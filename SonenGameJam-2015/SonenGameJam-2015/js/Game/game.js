@@ -56,23 +56,25 @@ function GrowMap(Canvas, Context)
     this.Context = Context;
 
     this.ImageData = null;
+    this.Growth = null;
     this.DirtyPixels = [];
 
     this.Constructor = function()
     {
         this.ImageData = this.Context.createImageData(Canvas.width, Canvas.height);
+        this.Growth = new Float32Array(Canvas.width * Canvas.height);
         for (var i = 0; i < this.ImageData.data.length; i += 4)
         {
             this.ImageData.data[i + 0] = 0;
             this.ImageData.data[i + 1] = 255;
             this.ImageData.data[i + 2] = 0;
-            this.ImageData.data[i + 3] = 0;
+            this.ImageData.data[i + 3] = 255;
         }
 
         var X = Canvas.width / 2;
         var Y = Canvas.height / 2;
-        var i = this.ToIndex(X, Y);
-        this.ImageData.data[i + 3] = 1;
+        var i = this.ToGrowthIndex(X, Y);
+        this.Growth[i] = 0;
         this.DirtyPixels.push({ X : X, Y : Y });
     }
 
@@ -83,11 +85,12 @@ function GrowMap(Canvas, Context)
             var Element = this.DirtyPixels[i];
             var PixelData = this.Context.getImageData(Element.X, Element.Y, 1, 1);
 
-            var i = this.ToIndex(Element.X, Element.Y);
-            var Blend = (this.ImageData.data[i + 3] / 255);
-            PixelData.data[0] = Background.data[i + 0] * (1 - Blend) + this.ImageData.data[i + 0] * Blend;
-            PixelData.data[1] = Background.data[i + 1] * (1 - Blend) + this.ImageData.data[i + 1] * Blend;
-            PixelData.data[2] = Background.data[i + 2] * (1 - Blend) + this.ImageData.data[i + 2] * Blend;
+            var GrowthIndex = this.ToGrowthIndex(Element.X, Element.Y);
+            var PixelIndex = this.ToPixelIndex(Element.X, Element.Y);
+            var Blend = this.Growth[GrowthIndex];
+            PixelData.data[0] = Background.data[PixelIndex + 0] * (1 - Blend) + this.ImageData.data[PixelIndex + 0] * Blend;
+            PixelData.data[1] = Background.data[PixelIndex + 1] * (1 - Blend) + this.ImageData.data[PixelIndex + 1] * Blend;
+            PixelData.data[2] = Background.data[PixelIndex + 2] * (1 - Blend) + this.ImageData.data[PixelIndex + 2] * Blend;
 
             this.Context.putImageData(PixelData, Element.X, Element.Y);
         }
@@ -104,18 +107,23 @@ function GrowMap(Canvas, Context)
 
     this.Regrow = function(DirtyIndex, X, Y)
     {
-        var i = this.ToIndex(X, Y);
-        if(this.ImageData.data[i + 3] == 255)
+        var i = this.ToGrowthIndex(X, Y);
+        if(this.Growth[i] >= 1)
         {
+            this.Growth[i] = 1;
             this.DirtyPixels.splice(DirtyIndex, 1);
             return;
         }
 
-        this.ImageData.data[i + 3] += 1;
+        this.Growth[i] += 0.05;
     }
 
-    this.ToIndex = function(X, Y)
+    this.ToGrowthIndex = function(X, Y)
     {
+        return Y * this.Canvas.width + X;
+    }
+
+    this.ToPixelIndex = function (X, Y) {
         return (Y * 4) * this.Canvas.width + (X * 4);
     }
 

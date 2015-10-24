@@ -1,11 +1,14 @@
 ﻿var Game = {
     Canvas: null,
     Context: null,
+
     FixedTimestep: 30,
-    GameLoop : null,
+    GameLoop: null,
+    DefeatTimer: 1000,
+    DefeatCheck: null,
+
     GrowMap: null,
     Background: null,
-    FrameCounter: 0,
 
     Tower: [],
 
@@ -13,6 +16,7 @@
     ActiveSkill: null,
 
     PointerDown: false,
+    Defeated : false,
 
     Init: function()
     {
@@ -31,7 +35,7 @@
         this.Draw();
 
         this.GameLoop = window.setInterval(function () { Game.Tick(); }, this.FixedTimestep);
-        //window.setTimeout(function () { Game.Finit(); }, 15000);
+        this.DefeatCheck = window.setInterval(function () { Game.CheckForDefeat(); }, this.DefeatTimer);
     },
 
     Start: function()
@@ -86,6 +90,36 @@
 
         for (var i = 0; i < this.Tower.length; i++) {
             this.Tower[i].Draw(this.Context);
+        }
+
+
+        if(this.Defeated)
+        {
+            this.Context.textAlign = "center";
+            this.Context.fillStyle = "red";
+            this.Context.font = "bold 10em sans-serif";
+            this.Context.fillText("Defeat", this.Canvas.width/2, this.Canvas.height/2);
+        }
+    },
+
+    CheckForDefeat : function()
+    {
+        var Defeat = true;
+
+        for (var i = 0; i < this.Tower.length; i++)
+        {
+            if(!this.Tower[i].CheckForOvergrow())
+            {
+                Defeat = false;
+                break;
+            }
+        }
+
+        if(Defeat)
+        {
+            this.Defeated = true;
+            clearInterval(this.DefeatCheck);
+            console.log("Defeat");
         }
     },
 
@@ -332,6 +366,20 @@ function GrowMap(Canvas, Context)
         return (Y * 4) * this.Canvas.width + (X * 4);
     }
 
+    this.GetOvergrownValueRect = function(X, Y, Width, Heigth)
+    {
+        var Value = 0;
+
+        for (var y = Y - Width / 2 ; y < Y + Width / 2; y++)
+            for (var x = X - Width / 2 ; x < X + Width / 2; x++)
+            {
+                var i = this.ToGrowthIndex(x, y);
+                Value += this.Growth[i];
+            }
+
+        return Value/(Width * Heigth);
+    }
+
     this.Constructor();
 }
 
@@ -344,6 +392,7 @@ function Tower(X,Y, GrowMap)
     this.Range = 150;
     this.Size = 50;
 
+    this.Active = true;
     this.LazerTarget = null;
 
     this.Constructor = function()
@@ -385,7 +434,24 @@ function Tower(X,Y, GrowMap)
 
     this.GetShootingValue = function(X, Y)
     {
-        return this.InRange(X, Y);
+        var InRange = this.InRange(X, Y);
+
+        if (InRange != NaN)
+        {
+            this.CheckForOvergrow();
+        }
+
+        return (this.Active) ? InRange : NaN;
+    }
+
+    this.CheckForOvergrow = function()
+    {
+        if (this.Active)
+        {
+            this.Active = (this.GrowMap.GetOvergrownValueRect(this.X, this.Y, this.Size, this.Size) < 0.75);
+        }
+
+        return !this.Active;
     }
 
     this.Fire = function(X, Y)

@@ -13,6 +13,7 @@
     Tower: [],
 
     LaserSkill: null,
+    TowerBuildSkill: null,
     ActiveSkill: null,
 
     PointerDown: false,
@@ -22,13 +23,16 @@
     {
         this.SetupCanvas();
         this.GrowMap = new GrowMap(this.Canvas, this.Context);
+
         this.LaserSkill = new LaserSkill(this.Tower);
+        this.TowerBuildSkill = new BuildTowerSkill(this.Tower, this.GrowMap);
         
         this.Canvas.addEventListener("mousedown", function (event) { Game.OnPointerDown(event) });
         this.Canvas.addEventListener("mousemove", function (event) { Game.OnPointerMove(event) });
         this.Canvas.addEventListener("mouseup", function (event) { Game.OnPointerUp(event) });
 
         this.ActiveSkill = this.LaserSkill;
+        this.ActiveSkill.Button.disabled = true;
 
         this.Start();
 
@@ -446,10 +450,7 @@ function Tower(X,Y, GrowMap)
 
     this.CheckForOvergrow = function()
     {
-        if (this.Active)
-        {
-            this.Active = (this.GrowMap.GetOvergrownValueRect(this.X, this.Y, this.Size, this.Size) < 0.75);
-        }
+        this.Active = (this.GrowMap.GetOvergrownValueRect(this.X, this.Y, this.Size, this.Size) < 0.75);
 
         return !this.Active;
     }
@@ -463,8 +464,16 @@ function Tower(X,Y, GrowMap)
     this.Constructor();
 }
 
-function Skill()
+function Skill(ButtonID, Parent)
 {
+    this.Button = document.getElementById(ButtonID);
+    this.Button.Skill = Parent;
+
+    this.Constructor = function()
+    {
+        this.Button.addEventListener("click", function () { this.Skill.OnSkillButtonClick(); });
+    }
+
     this.PointerDown = function(event)
     {
 
@@ -479,11 +488,21 @@ function Skill()
     {
 
     }
+
+    this.OnSkillButtonClick = function ()
+    {
+        Game.ActiveSkill.Button.disabled = false;
+        Game.ActiveSkill = this;
+        Game.ActiveSkill.Button.disabled = true;
+
+    }
+
+    this.Constructor();
 }
 
 function LaserSkill(Tower)
 {
-    this.__proto__ = new Skill();
+    this.__proto__ = new Skill("LaserSkill", this);
     this.Tower = Tower;
 
     this.PointerDown = function (event) {
@@ -517,5 +536,28 @@ function LaserSkill(Tower)
         }
 
         return (BestIndex != NaN) ? this.Tower[BestIndex] : null;
+    }
+}
+
+function BuildTowerSkill(TowerList, GrowMap)
+{
+    this.__proto__ = new Skill("BuildTowerSkill", this);
+    this.Tower = TowerList;
+    this.GrowMap = GrowMap;
+
+    this.PointerUp = function (event)
+    {
+        var X = event.clientX;
+        var Y = event.clientY;
+
+        //Check if not colliding
+        var PlaceIsFree = true;
+
+        this.Tower.push(new Tower(X, Y, this.GrowMap));
+    }
+
+    this.CheckBuildingPlace(X, Y)
+    {
+
     }
 }

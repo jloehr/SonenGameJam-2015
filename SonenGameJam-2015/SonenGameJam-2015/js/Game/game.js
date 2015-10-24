@@ -7,12 +7,16 @@
     Background: null,
     FrameCounter: 0,
 
+    PointerDown: false,
+
     Init: function()
     {
         this.SetupCanvas();
         this.GrowMap = new GrowMap(this.Canvas, this.Context);
         
-        this.Canvas.addEventListener("pointerdown", function (event) { Game.OnPointerDown(event) });
+        this.Canvas.addEventListener("mousedown", function (event) { Game.OnPointerDown(event) });
+        this.Canvas.addEventListener("mousemove", function (event) { Game.OnPointerMove(event) });
+        this.Canvas.addEventListener("mouseup", function (event) { Game.OnPointerUp(event) });
 
         this.Draw();
 
@@ -46,8 +50,6 @@
 
     Tick : function()
     {
-        this.FrameCounter++;
-        console.log("Frame: " + this.FrameCounter);
         this.Update();
         this.Draw();
     },
@@ -62,10 +64,24 @@
         this.GrowMap.Draw(this.Background);
     },
 
-    OnPointerDown : function(event)
+    OnPointerDown:function(event)
     {
-        console.log("Pointer at " + event.clientX + ", " + event.clientY);
+        this.PointerDown = true;
         this.GrowMap.ClearArea(event.clientX, event.clientY);
+
+    },
+
+    OnPointerMove : function(event)
+    {
+        if (this.PointerDown)
+        {
+            this.GrowMap.ClearArea(event.clientX, event.clientY);
+        }
+    },
+
+    OnPointerUp : function(event)
+    {
+        this.PointerDown = false;
     }
 }
 

@@ -1,4 +1,11 @@
-﻿var Game = {
+﻿var GlobalSettings = {
+    Tower: {
+        Size: 50,
+        MaxOvergrowth: 0.75,
+    },
+}
+
+var Game = {
     Canvas: null,
     Context: null,
 
@@ -10,7 +17,8 @@
     GrowMap: null,
     Background: null,
 
-    Tower: [],
+    Buildings: [],
+    Towers: [],
 
     LaserSkill: null,
     TowerBuildSkill: null,
@@ -24,8 +32,8 @@
         this.SetupCanvas();
         this.GrowMap = new GrowMap(this.Canvas, this.Context);
 
-        this.LaserSkill = new LaserSkill(this.Tower);
-        this.TowerBuildSkill = new BuildTowerSkill(this.Tower, this.GrowMap);
+        this.LaserSkill = new LaserSkill(this.Towers);
+        this.TowerBuildSkill = new BuildTowerSkill(this.Towers, this.Buildings, this.GrowMap);
         
         this.Canvas.addEventListener("mousedown", function (event) { Game.OnPointerDown(event) });
         this.Canvas.addEventListener("mousemove", function (event) { Game.OnPointerMove(event) });
@@ -49,8 +57,9 @@
 
         this.GrowMap.ClearAreaWithRangeAndSmooth(X, Y, 100, 35);
 
-        this.Tower.push(new Tower(X, Y, this.GrowMap));
-        this.Tower.push(new Tower(350, 550, this.GrowMap));
+        var NewTower = new Tower(X, Y, this.GrowMap)
+        this.Towers.push(NewTower);
+        this.Buildings.push(NewTower);
     },
 
     Finit : function()
@@ -86,14 +95,19 @@
     Update : function()
     {
         this.GrowMap.Update();
+
+        for (var i = 0; i < this.Towers.length; i++) {
+            this.Towers[i].Update()
+        }
+
     },
 
     Draw : function()
     {
         this.GrowMap.Draw(this.Background);
 
-        for (var i = 0; i < this.Tower.length; i++) {
-            this.Tower[i].Draw(this.Context);
+        for (var i = 0; i < this.Towers.length; i++) {
+            this.Towers[i].Draw(this.Context);
         }
 
 
@@ -110,9 +124,9 @@
     {
         var Defeat = true;
 
-        for (var i = 0; i < this.Tower.length; i++)
+        for (var i = 0; i < this.Towers.length; i++)
         {
-            if(!this.Tower[i].CheckForOvergrow())
+            if(!this.Towers[i].CheckForOvergrow())
             {
                 Defeat = false;
                 break;
@@ -387,35 +401,77 @@ function GrowMap(Canvas, Context)
     this.Constructor();
 }
 
-function Tower(X,Y, GrowMap)
+function Building(X, Y, Width, Height, GrowMap, MaxOvergrowth)
 {
     this.X = X;
     this.Y = Y;
-    this.GrowMap = GrowMap;
+    this.Width = Width;
+    this.Height = Height;
 
-    this.Range = 150;
-    this.Size = 50;
+    this.GrowMap = GrowMap;
+    this.MaxOvergrowth = MaxOvergrowth;
 
     this.Active = true;
+
+    this.CheckForOvergrow = function () {
+        this.Active = (this.GrowMap.GetOvergrownValueRect(this.X, this.Y, this.Width, this.Height) < this.MaxOvergrowth);
+
+        return !this.Active;
+    }
+
+    this.IsColliding = function (X, Y, Width, Height)
+    {
+        return ((Math.abs(X - this.X) > (Width/2 + this.Width/2)) || (Math.abs(Y - this.Y) > (Height/2 + this.Height/2)));
+    }
+
+}
+
+function Tower(X,Y, GrowMap)
+{
+    this.__proto__ = new Building(X, Y, GlobalSettings.Tower.Size, GlobalSettings.Tower.Size, GrowMap, GlobalSettings.Tower.MaxOvergrowth);
+
+    this.Range = 150;
+
     this.LazerTarget = null;
+
+    this.MaxEnergy = 100;
+    this.Energy = this.MaxEnergy;
+    this.EnergyDrain = 1;
+    this.EnergyRegain = 0.35;
 
     this.Constructor = function()
     {
 
     }
 
+    this.Update = function()
+    {
+        this.Energy = Math.min(this.MaxEnergy, this.Energy + this.EnergyRegain);
+    }
+
     this.Draw = function(Context)
     {
-        var TWidth = this.Size / 3;
-        var THeight = this.Size * 1 / 3;
+        var TWidth = this.Width * 0.3;
+        var THeight = this.Height * 0.3;
         Context.strokeStyle = "black";
         Context.beginPath()
-        Context.rect(this.X - this.Size / 2, this.Y - this.Size/2, this.Size, this.Size);
+        Context.rect(this.X - this.Width / 2, this.Y - this.Height / 2, this.Width, this.Height);
         Context.moveTo(this.X - TWidth, this.Y - THeight);
         Context.lineTo(this.X + TWidth, this.Y - THeight);
         Context.moveTo(this.X, this.Y - THeight);
         Context.lineTo(this.X, this.Y + THeight);
         Context.stroke();
+
+        var EnergyBarHeight = this.Height * 0.1;
+        var EnergyBarPosition = this.Y + this.Height * 0.35;
+        var EnergyBarWidth = this.Width * 0.8;
+        var EnergyWidth = this.Energy / this.MaxEnergy * EnergyBarWidth;
+
+        Context.fillStyle = "lightblue";
+        Context.fillRect(this.X + EnergyBarWidth / 2 - EnergyWidth, EnergyBarPosition, EnergyWidth, EnergyBarHeight);
+        Context.strokeStyle = "blue";
+        Context.strokeRect(this.X - EnergyBarWidth / 2, EnergyBarPosition, EnergyBarWidth, EnergyBarHeight);
+        
 
         if (this.LazerTarget)
         {
@@ -438,6 +494,11 @@ function Tower(X,Y, GrowMap)
 
     this.GetShootingValue = function(X, Y)
     {
+        if (this.Energy < this.EnergyDrain)
+        {
+            return NaN;
+        }
+
         var InRange = this.InRange(X, Y);
 
         if (InRange != NaN)
@@ -448,9 +509,11 @@ function Tower(X,Y, GrowMap)
         return (this.Active) ? InRange : NaN;
     }
 
-    this.CheckForOvergrow = function()
+    this.Fire = function(X, Y)
     {
-        this.Active = (this.GrowMap.GetOvergrownValueRect(this.X, this.Y, this.Size, this.Size) < 0.75);
+        this.GrowMap.ClearArea(X, Y);
+        this.LazerTarget = { X: X, Y: Y };
+        this.Energy -= this.EnergyDrain;
 
         return !this.Active;
     }
@@ -500,10 +563,10 @@ function Skill(ButtonID, Parent)
     this.Constructor();
 }
 
-function LaserSkill(Tower)
+function LaserSkill(Towers)
 {
     this.__proto__ = new Skill("LaserSkill", this);
-    this.Tower = Tower;
+    this.Towers = Towers;
 
     this.PointerDown = function (event) {
         this.Fire(event);
@@ -525,9 +588,9 @@ function LaserSkill(Tower)
     {
         var SmallestRange = Number.MAX_VALUE;
         var BestIndex = NaN;
-        for (var i = 0; i < this.Tower.length; i++)
+        for (var i = 0; i < this.Towers.length; i++)
         {
-            var Range = this.Tower[i].GetShootingValue(X, Y);
+            var Range = this.Towers[i].GetShootingValue(X, Y);
             if((Range != NaN) && (Range < SmallestRange))
             {
                 SmallestRange = Range;
@@ -535,14 +598,27 @@ function LaserSkill(Tower)
             }
         }
 
-        return (BestIndex != NaN) ? this.Tower[BestIndex] : null;
+        return (BestIndex != NaN) ? this.Towers[BestIndex] : null;
     }
 }
 
-function BuildTowerSkill(TowerList, GrowMap)
+var Util = {
+    CheckBuildingPlace : function(X,Y, Width, Height, Buildings)
+    {
+        var WillFit = true;
+        for (var i = 0; i < Buildings.length; i++) {
+            WillFit = WillFit && Buildings[i].IsColliding(X, Y, Width, Height);
+        }
+
+        return WillFit;
+    }
+}
+
+function BuildTowerSkill(Towers, Buildings, GrowMap)
 {
     this.__proto__ = new Skill("BuildTowerSkill", this);
-    this.Tower = TowerList;
+    this.Buildings = Buildings;
+    this.Towers = Towers;
     this.GrowMap = GrowMap;
 
     this.PointerUp = function (event)
@@ -550,14 +626,15 @@ function BuildTowerSkill(TowerList, GrowMap)
         var X = event.clientX;
         var Y = event.clientY;
 
-        //Check if not colliding
-        var PlaceIsFree = true;
+        var ValidPlace = Util.CheckBuildingPlace(X, Y, GlobalSettings.Tower.Size, GlobalSettings.Tower.Size, this.Buildings);
 
-        this.Tower.push(new Tower(X, Y, this.GrowMap));
+        if (ValidPlace)
+        {
+            var NewTower = new Tower(X, Y, this.GrowMap);
+            this.Towers.push(NewTower);
+            this.Buildings.push(NewTower);
     }
 
-    this.CheckBuildingPlace(X, Y)
-    {
 
     }
 }

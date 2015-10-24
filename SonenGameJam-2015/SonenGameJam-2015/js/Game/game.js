@@ -60,6 +60,12 @@
     Draw : function()
     {
         this.GrowMap.Draw(this.Background);
+    },
+
+    OnPointerDown : function(event)
+    {
+        console.log("Pointer at " + event.clientX + ", " + event.clientY);
+        this.GrowMap.ClearArea(event.clientX, event.clientY);
     }
 }
 

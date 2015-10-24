@@ -74,10 +74,13 @@ function GrowMap(Canvas, Context)
     this.Canvas = Canvas;
     this.Context = Context;
 
-    this.ImageData = null;
+    this.GrowImage = null;
+    this.GrowImageData = null;
     this.DrawBuffer = null;
+    this.DrawBufferData = null;
     this.Growth = null;
-    this.DirtyPixels = [];
+    this.DirtyPixelsList = [];
+    this.DirtyPixelsArray = [];
 
     this.SelfGrowth = 1.01;
     this.DirectNeighborGrowth = 0.01;
@@ -89,20 +92,22 @@ function GrowMap(Canvas, Context)
 
     this.Constructor = function()
     {
-        this.ImageData = this.Context.createImageData(Canvas.width, Canvas.height);
-        this.Buffer = this.Context.createImageData(1, 1);
+        this.GrowImage = this.Context.createImageData(Canvas.width, Canvas.height);
+        this.GrowImageData = this.GrowImage.data;
         this.Growth = new Float32Array(Canvas.width * Canvas.height);
         this.ClearStencil = new Float32Array(2 * this.ClearRadius * 2 * this.ClearRadius);
 
-        for (var i = 0; i < this.ImageData.data.length; i += 4)
+        for (var i = 0; i < this.GrowImageData.length; i += 4)
         {
-            this.ImageData.data[i + 0] = 0;
-            this.ImageData.data[i + 1] = 255;
-            this.ImageData.data[i + 2] = 0;
-            this.ImageData.data[i + 3] = 255;
+            this.GrowImageData[i + 0] = 0;
+            this.GrowImageData[i + 1] = 255;
+            this.GrowImageData[i + 2] = 0;
+            this.GrowImageData[i + 3] = 255;
         }
 
-        this.Buffer.data[3] = 255;
+        this.Context.putImageData(this.GrowImage, 0, 0);
+        this.DrawBuffer = this.Context.getImageData(0, 0, Canvas.width, Canvas.height);
+        this.DrawBufferData = this.DrawBuffer.data;
 
         this.Growth.fill(1);
 
@@ -128,31 +133,32 @@ function GrowMap(Canvas, Context)
         var Y = Canvas.height / 2;
         this.ClearArea(X, Y);
 
-        this.Context.putImageData(this.ImageData, 0, 0); 
     }
 
     this.Draw = function(Background)
     {
-        for (var i = 0; i < this.DirtyPixels.length; i++)
+        var BackgroundData = Background.data;
+        for (var i = 0; i < this.DirtyPixelsList.length; i++)
         {
-            var Element = this.DirtyPixels[i];
+            var Element = this.DirtyPixelsList[i];
 
             var GrowthIndex = this.ToGrowthIndex(Element.X, Element.Y);
             var PixelIndex = this.ToPixelIndex(Element.X, Element.Y);
             var Blend = Math.min(1, this.Growth[GrowthIndex]);
-            this.Buffer.data[0] = Background.data[PixelIndex + 0] * (1 - Blend) + this.ImageData.data[PixelIndex + 0] * Blend;
-            this.Buffer.data[1] = Background.data[PixelIndex + 1] * (1 - Blend) + this.ImageData.data[PixelIndex + 1] * Blend;
-            this.Buffer.data[2] = Background.data[PixelIndex + 2] * (1 - Blend) + this.ImageData.data[PixelIndex + 2] * Blend;
+            this.DrawBufferData[PixelIndex + 0] = BackgroundData[PixelIndex + 0] * (1 - Blend) + this.GrowImageData[PixelIndex + 0] * Blend;
+            this.DrawBufferData[PixelIndex + 1] = BackgroundData[PixelIndex + 1] * (1 - Blend) + this.GrowImageData[PixelIndex + 1] * Blend;
+            this.DrawBufferData[PixelIndex + 2] = BackgroundData[PixelIndex + 2] * (1 - Blend) + this.GrowImageData[PixelIndex + 2] * Blend;
 
-            this.Context.putImageData(this.Buffer, Element.X, Element.Y);
         }
+
+        this.Context.putImageData(this.DrawBuffer, 0, 0);
     }
 
     this.Update = function()
     {   
-        for (var i = this.DirtyPixels.length - 1; i >= 0; i--)
+        for (var i = this.DirtyPixelsList.length - 1; i >= 0; i--)
         {
-            var Element = this.DirtyPixels[i];
+            var Element = this.DirtyPixelsList[i];
             this.Regrow(i, Element.X, Element.Y);
         }
     }
@@ -163,7 +169,8 @@ function GrowMap(Canvas, Context)
         if(this.Growth[i] >= 1)
         {
             this.Growth[i] = 1;
-            this.DirtyPixels.splice(DirtyIndex, 1);
+            this.DirtyPixelsList.splice(DirtyIndex, 1);
+            this.DirtyPixelsArray[i] = false;
             return;
         }
 
@@ -181,19 +188,20 @@ function GrowMap(Canvas, Context)
 
         if (NewGrowth > 0.25)
         {
-            this.SeedNeighbor(X + 0, Y - 1);
-            this.SeedNeighbor(X + 1, Y - 1);
-            this.SeedNeighbor(X + 1, Y - 0);
-            this.SeedNeighbor(X + 1, Y + 1);
-            this.SeedNeighbor(X + 0, Y + 1);
-            this.SeedNeighbor(X - 1, Y + 1);
-            this.SeedNeighbor(X - 1, Y + 0);
-            this.SeedNeighbor(X - 1, Y - 1);
+            this.Seed(X + 0, Y - 1);
+            this.Seed(X + 1, Y - 1);
+            this.Seed(X + 1, Y - 0);
+            this.Seed(X + 1, Y + 1);
+            this.Seed(X + 0, Y + 1);
+            this.Seed(X - 1, Y + 1);
+            this.Seed(X - 1, Y + 0);
+            this.Seed(X - 1, Y - 1);
         }
 
         if(NewGrowth == 0)
         {
-            this.DirtyPixels.splice(DirtyIndex, 1);
+            this.DirtyPixelsList.splice(DirtyIndex, 1);
+            this.DirtyPixelsArray[i] = false;
         }
     }
 
@@ -208,7 +216,7 @@ function GrowMap(Canvas, Context)
         return (this.Growth[i] * (Diagonal ? this.DiagonalNeighborGrowth : this.DirectNeighborGrowth));
     }
 
-    this.SeedNeighbor = function(X, Y)
+    this.Seed = function(X, Y)
     {
         var i = this.ToGrowthIndex(X, Y);
         if ((i < 0) || (i > this.Growth.length))
@@ -221,13 +229,14 @@ function GrowMap(Canvas, Context)
             return;
         }
 
-        var NewDirtyPixel = {X : X, Y :Y };
-        var DirtyPixelIndex = this.DirtyPixels.findIndex(function (element, index, array) { return ((element.X == this.X) && (element.Y == this.Y)); }, NewDirtyPixel);
-
-        if(DirtyPixelIndex == -1)
+        if (this.DirtyPixelsArray[i])
         {
-            this.DirtyPixels.push(NewDirtyPixel);
+            return;
         }
+
+        var NewDirtyPixel = { X: X, Y: Y };
+        this.DirtyPixelsList.push(NewDirtyPixel);
+        this.DirtyPixelsArray[i] = true;
     }
 
     this.ClearArea = function(X,Y)
@@ -246,7 +255,7 @@ function GrowMap(Canvas, Context)
                     this.Growth[GrowthIndex] *= this.ClearStencil[StencilIndex];
                     if(this.Growth[GrowthIndex] < 1)
                     {
-                        this.SeedNeighbor(X + x, Y + y);
+                        this.Seed(X + x, Y + y);
                     }
                 }
             }

@@ -127,27 +127,12 @@ function GrowMap(Canvas, Context)
 
         this.Growth.fill(1);
 
-        for(var y = 0; y < 2 * this.ClearRadius; y++)
-            for(var x = 0; x < 2 * this.ClearRadius; x++)
-            {
-                var StencilIndex = y * 2 * this.ClearRadius + x;
+        this.CreateClearStencil();
 
-                var Distance = Math.sqrt(Math.pow(x - this.ClearRadius, 2) + Math.pow(y - this.ClearRadius, 2));
-                if (Distance > (this.ClearRadius - this.ClearSmooth))
-                {
-                    Distance -= this.ClearRadius - this.ClearSmooth;
-                    this.ClearStencil[StencilIndex] = Math.min(1, Distance / this.ClearSmooth);
+        var X = Math.round(this.Canvas.width / 2);
+        var Y = Math.round(this.Canvas.height / 2);
 
-                }
-                else
-                {
-                    this.ClearStencil[StencilIndex] = 0;
-                }
-            }
-
-        var X = Canvas.width / 2;
-        var Y = Canvas.height / 2;
-        this.ClearArea(X, Y);
+        this.ClearAreaWithRangeAndSmooth(X, Y, 100, 35);
 
     }
 
@@ -202,7 +187,7 @@ function GrowMap(Canvas, Context)
 
         this.Growth[i] = NewGrowth;
 
-        if (NewGrowth > 0.25)
+        if (NewGrowth > 0.05)
         {
             this.Seed(X + 0, Y - 1);
             this.Seed(X + 1, Y - 1);
@@ -255,6 +240,28 @@ function GrowMap(Canvas, Context)
         this.DirtyPixelsArray[i] = true;
     }
 
+    this.GetClearValue = function(X, Y, Radius, Smooth)
+    {
+        var Distance = Math.sqrt(Math.pow(X - Radius, 2) + Math.pow(Y - Radius, 2));
+        if (Distance > (Radius - Smooth)) {
+            Distance -= Radius - Smooth;
+            return Math.min(1, Distance / Smooth);
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
+    this.CreateClearStencil = function()
+    {
+        for (var y = 0; y < 2 * this.ClearRadius; y++)
+            for (var x = 0; x < 2 * this.ClearRadius; x++) {
+                var StencilIndex = y * 2 * this.ClearRadius + x;
+                this.ClearStencil[StencilIndex] = this.GetClearValue(x, y, this.ClearRadius, this.ClearSmooth);
+            }
+    }
+
     this.ClearArea = function(X,Y)
     {
         X -= this.ClearRadius;
@@ -271,6 +278,25 @@ function GrowMap(Canvas, Context)
                     this.Growth[GrowthIndex] *= this.ClearStencil[StencilIndex];
                     if(this.Growth[GrowthIndex] < 1)
                     {
+                        this.Seed(X + x, Y + y);
+                    }
+                }
+            }
+    }
+
+    this.ClearAreaWithRangeAndSmooth = function(X, Y, Radius, Smooth)
+    {
+        X -= Radius;
+        Y -= Radius;
+
+        for (var y = 0; y < 2 * Radius; y++)
+            for (var x = 0; x < 2 * Radius; x++)
+            {
+                var GrowthIndex = this.ToGrowthIndex(X + x, Y + y);
+                if ((GrowthIndex > 0) && (GrowthIndex < this.Growth.length))
+                {
+                    this.Growth[GrowthIndex] *= this.GetClearValue(x, y, Radius, Smooth)
+                    if (this.Growth[GrowthIndex] < 1) {
                         this.Seed(X + x, Y + y);
                     }
                 }

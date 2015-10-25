@@ -110,11 +110,15 @@ var Game = {
         this.Canvas.height = window.innerHeight;
         this.Context = this.Canvas.getContext("2d");
 
+        var GreyVariance = 5;
+        var ColorVariance = 2.5;
+
         this.Background = this.Context.createImageData(this.Canvas.width, this.Canvas.height);
         for (var i = 0; i < this.Background.data.length; i += 4) {
-            this.Background.data[i + 0] = 139;
-            this.Background.data[i + 1] = 69;
-            this.Background.data[i + 2] = 19;
+            var Grey = (Math.random() * GreyVariance) - GreyVariance/2;
+            this.Background.data[i + 0] = 139 + Grey + (Math.random() * ColorVariance) - ColorVariance / 2;
+            this.Background.data[i + 1] = 69 + Grey + (Math.random() * ColorVariance) - ColorVariance / 2;
+            this.Background.data[i + 2] = 19 + Grey + (Math.random() * ColorVariance) - ColorVariance / 2;
             this.Background.data[i + 3] = 255;
         }
         this.Context.putImageData(this.Background, 0, 0);

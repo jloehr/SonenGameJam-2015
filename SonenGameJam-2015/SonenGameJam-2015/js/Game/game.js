@@ -339,7 +339,7 @@ function GrowMap(Canvas, Context)
         for (var i = 0; i < this.DirtyPixelsList.length; i++)
         {
             var Element = this.DirtyPixelsList[i];
-            Element.Draw = true;
+            Element.Drawn = true;
 
             var GrowthIndex = this.ToGrowthIndex(Element.X, Element.Y);
             var PixelIndex = this.ToPixelIndex(Element.X, Element.Y);

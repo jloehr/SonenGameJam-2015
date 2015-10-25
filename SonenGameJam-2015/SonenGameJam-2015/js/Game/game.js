@@ -136,6 +136,20 @@ var Game = {
         for (var i = 0; i < this.Buildings.length; i++) {
             this.Buildings[i].Update()
         }
+
+        if(this.Victory || this.Defeated)
+        {
+            if (this.NameBlend < 1)
+            {
+                this.NameBlend = Math.min(1, this.NameBlend + this.NameBlendDrain);
+            }
+        }
+        else
+        {
+            if (this.NameBlend > 0) {
+                this.NameBlend = Math.max(0, this.NameBlend - this.NameBlendDrain);
+            }
+        }
     },
 
     Draw : function()
@@ -170,7 +184,6 @@ var Game = {
             this.Context.lineWidth = TextLineTmp;
 
             this.Context.globalAlpha = 1;
-            this.NameBlend -= this.NameBlendDrain;
         }
 
         if(this.Defeated)

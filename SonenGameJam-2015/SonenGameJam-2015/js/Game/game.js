@@ -11,8 +11,8 @@
     },
 
     Degenerator: {
-        Width: 100,
-        Height: 75,
+        Width: 200,
+        Height: 150,
         MaxOvergrowth: 0.2,
     },
 }
@@ -44,6 +44,9 @@ var Game = {
     PointerDown: false,
     Defeated: false,
     Victory: false,
+
+    NameBlend: 1.0,
+    NameBlendDrain: 0.01,
 
     Init: function()
     {
@@ -125,13 +128,14 @@ var Game = {
 
     Update : function()
     {
-        this.GrowMap.Update();
+        if (!this.Victory)
+        {
+            this.GrowMap.Update();
+        }
 
         for (var i = 0; i < this.Buildings.length; i++) {
             this.Buildings[i].Update()
         }
-
-
     },
 
     Draw : function()
@@ -142,6 +146,27 @@ var Game = {
             this.Buildings[i].Draw(this.Context);
         }
 
+        if (this.NameBlend > 0)
+        {
+            var TextLineTmp = this.Context.lineWidth;
+            this.Context.lineWidth = 5;
+
+            var Text = "Overgrowth";
+
+            this.Context.globalAlpha = this.NameBlend;
+
+            this.Context.textAlign = "center";
+            this.Context.fillStyle = "rgb(173, 255, 47)";
+            this.Context.strokeStyle = "rgb(0, 100, 0)";
+            this.Context.font = "bold 10em sans-serif";
+            this.Context.fillText(Text, this.Canvas.width / 2, this.Canvas.height / 4);
+            this.Context.strokeText(Text, this.Canvas.width / 2, this.Canvas.height / 4);
+
+            this.Context.lineWidth = TextLineTmp;
+
+            this.Context.globalAlpha = 1;
+            this.NameBlend -= this.NameBlendDrain;
+        }
 
         if(this.Defeated)
         {
@@ -205,7 +230,7 @@ var Game = {
         var Victory = true;
 
         for (var i = 0; i < this.Degenerator.length; i++) {
-            if (this.Degenerator[i].CheckForOvergrow()) {
+            if (this.Degenerator[i].CheckForOvergrow(true)) {
                 Victory = false;
                 break;
             }
@@ -467,8 +492,8 @@ function GrowMap(Canvas, Context)
     {
         var Value = 0;
 
-        for (var y = Y - Width / 2 ; y < Y + Width / 2; y++)
-            for (var x = X - Width / 2 ; x < X + Width / 2; x++)
+        for (var y = Math.round(Y - Heigth / 2) ; y < Y + Heigth / 2; y++)
+            for (var x = Math.round(X - Width / 2) ; x < X + Width / 2; x++)
             {
                 var i = this.ToGrowthIndex(x, y);
                 Value += this.Growth[i];
@@ -492,8 +517,14 @@ function Building(X, Y, Width, Height, GrowMap, MaxOvergrowth)
 
     this.Active = true;
 
-    this.CheckForOvergrow = function () {
-        this.Active = (this.GrowMap.GetOvergrownValueRect(this.X, this.Y, this.Width, this.Height) < this.MaxOvergrowth);
+    this.CheckForOvergrow = function (Verbose) {
+        var OvergrowthValue = this.GrowMap.GetOvergrownValueRect(this.X, this.Y, this.Width, this.Height)
+        this.Active = (OvergrowthValue < this.MaxOvergrowth);
+
+        if (Verbose)
+        {
+            console.log(OvergrowthValue)
+        }
 
         return !this.Active;
     }

@@ -146,6 +146,11 @@ var Game = {
             this.Buildings[i].Draw(this.Context);
         }
 
+        for (var i = 0; i < this.Buildings.length; i++) {
+            this.Buildings[i].DrawEffects(this.Context);
+        }
+
+
         if (this.NameBlend > 0)
         {
             var TextLineTmp = this.Context.lineWidth;
@@ -544,6 +549,11 @@ function Building(X, Y, Width, Height, GrowMap, MaxOvergrowth)
         this.DrawOutline(Context);
     }
 
+    this.DrawEffects = function (Context) {
+
+    }
+
+
     this.DrawOutline = function(Context)
     {
         Context.strokeStyle = "black";
@@ -599,7 +609,10 @@ function Tower(X,Y, GrowMap)
         Context.strokeStyle = "blue";
         Context.strokeRect(this.X - EnergyBarWidth / 2, EnergyBarPosition, EnergyBarWidth, EnergyBarHeight);
         
+    }
 
+    this.DrawEffects = function(Context)
+    {
         if (this.LazerTarget)
         {
             var Size = 10;
@@ -699,15 +712,16 @@ function Generator(X, Y, Tower, GrowMap)
         Context.arc(this.X, this.Y, this.Width * 0.4, Math.PI*1.7, 0, true);
         Context.lineTo(this.X, this.Y);
         Context.stroke();
+    }
 
-        if (this.EnergyProduced)
-        {
+    this.DrawEffects = function(Context)
+    {
+        if (this.EnergyProduced) {
             Context.setLineDash([15, 5]);
             Context.lineDashOffset = this.DashLineOffset;
             this.DashLineOffset -= this.DashLineSpeed;
         }
-        else
-        {
+        else {
             Context.setLineDash([10, 15]);
         }
 
@@ -718,7 +732,6 @@ function Generator(X, Y, Tower, GrowMap)
         Context.stroke();
         Context.setLineDash([]);
         Context.lineDashOffset = 0;
-
     }
 
     this.Update = function()

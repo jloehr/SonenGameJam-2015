@@ -128,10 +128,7 @@ var Game = {
 
     Update : function()
     {
-        if (!this.Victory)
-        {
-            this.GrowMap.Update();
-        }
+        this.GrowMap.Update();
 
         for (var i = 0; i < this.Buildings.length; i++) {
             this.Buildings[i].Update()
@@ -259,6 +256,7 @@ var Game = {
             this.Victory = true;
             clearInterval(this.DefeatCheck);
             clearInterval(this.VictoryCheck);
+            this.GrowMap.UpdatePixel = this.GrowMap.Degenerate;
             console.log("Victory");
         }
     },
@@ -328,6 +326,8 @@ function GrowMap(Canvas, Context)
         this.Growth.fill(1);
 
         this.CreateClearStencil();
+
+        this.UpdatePixel = this.Regrow;
     }
 
     this.Draw = function(Background)
@@ -354,7 +354,7 @@ function GrowMap(Canvas, Context)
         for (var i = this.DirtyPixelsList.length - 1; i >= 0; i--)
         {
             var Element = this.DirtyPixelsList[i];
-            this.Regrow(i, Element.X, Element.Y);
+            this.UpdatePixel(i, Element.X, Element.Y);
         }
     }
 
@@ -384,14 +384,14 @@ function GrowMap(Canvas, Context)
 
         if (NewGrowth > 0.05)
         {
-            this.Seed(X + 0, Y - 1);
-            this.Seed(X + 1, Y - 1);
-            this.Seed(X + 1, Y - 0);
-            this.Seed(X + 1, Y + 1);
-            this.Seed(X + 0, Y + 1);
-            this.Seed(X - 1, Y + 1);
-            this.Seed(X - 1, Y + 0);
-            this.Seed(X - 1, Y - 1);
+            this.MakeDirty(X + 0, Y - 1, true);
+            this.MakeDirty(X + 1, Y - 1, true);
+            this.MakeDirty(X + 1, Y - 0, true);
+            this.MakeDirty(X + 1, Y + 1, true);
+            this.MakeDirty(X + 0, Y + 1, true);
+            this.MakeDirty(X - 1, Y + 1, true);
+            this.MakeDirty(X - 1, Y + 0, true);
+            this.MakeDirty(X - 1, Y - 1, true);
         }
 
         if(NewGrowth == 0)
@@ -412,7 +412,7 @@ function GrowMap(Canvas, Context)
         return (this.Growth[i] * (Diagonal ? this.DiagonalNeighborGrowth : this.DirectNeighborGrowth));
     }
 
-    this.Seed = function(X, Y)
+    this.MakeDirty = function(X, Y, Seed)
     {
         var i = this.ToGrowthIndex(X, Y);
         if ((i < 0) || (i > this.Growth.length))
@@ -420,8 +420,12 @@ function GrowMap(Canvas, Context)
             return;
         }
 
-        if(this.Growth[i] >= 1)
+        if(Seed && (this.Growth[i] >= 1))
         {
+            return;
+        }
+
+        if (!Seed && (this.Growth[i] <= 0)) {
             return;
         }
 
@@ -433,6 +437,32 @@ function GrowMap(Canvas, Context)
         var NewDirtyPixel = { X: X, Y: Y };
         this.DirtyPixelsList.push(NewDirtyPixel);
         this.DirtyPixelsArray[i] = true;
+    }
+
+    this.Degenerate = function(DirtyIndex, X, Y)
+    {
+        var i = this.ToGrowthIndex(X, Y);
+        if (this.Growth[i] <= 0.01) {
+            this.Growth[i] = 0;
+            this.DirtyPixelsList.splice(DirtyIndex, 1);
+            this.DirtyPixelsArray[i] = false;
+            return;
+        }
+
+        var NewValue = this.Growth[i] * 0.95;
+
+        if (NewValue < 0.75) {
+            this.MakeDirty(X + 0, Y - 1, false);
+            this.MakeDirty(X + 1, Y - 1, false);
+            this.MakeDirty(X + 1, Y - 0, false);
+            this.MakeDirty(X + 1, Y + 1, false);
+            this.MakeDirty(X + 0, Y + 1, false);
+            this.MakeDirty(X - 1, Y + 1, false);
+            this.MakeDirty(X - 1, Y + 0, false);
+            this.MakeDirty(X - 1, Y - 1, false);
+        }
+
+        this.Growth[i] = NewValue;
     }
 
     this.GetClearValue = function(X, Y, Radius, Smooth)
@@ -473,7 +503,7 @@ function GrowMap(Canvas, Context)
                     this.Growth[GrowthIndex] *= this.ClearStencil[StencilIndex];
                     if(this.Growth[GrowthIndex] < 1)
                     {
-                        this.Seed(X + x, Y + y);
+                        this.MakeDirty(X + x, Y + y, true);
                     }
                 }
             }
@@ -492,7 +522,7 @@ function GrowMap(Canvas, Context)
                 {
                     this.Growth[GrowthIndex] *= this.GetClearValue(x, y, Radius, Smooth)
                     if (this.Growth[GrowthIndex] < 1) {
-                        this.Seed(X + x, Y + y);
+                        this.MakeDirty(X + x, Y + y, true);
                     }
                 }
             }

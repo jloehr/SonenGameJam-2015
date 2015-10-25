@@ -369,7 +369,8 @@ function GrowMap(Canvas, Context)
             return;
         }
 
-        var NewGrowth = this.Growth[i] * 1.01;
+        var NewGrowth = this.Growth[i] * this.SelfGrowth;
+       
         NewGrowth += this.GetNeighborGrowth(X + 0, Y - 1, false);
         NewGrowth += this.GetNeighborGrowth(X + 1, Y - 1, true);
         NewGrowth += this.GetNeighborGrowth(X + 1, Y - 0, false);

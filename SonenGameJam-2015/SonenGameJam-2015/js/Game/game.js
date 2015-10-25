@@ -296,8 +296,8 @@ function GrowMap(Canvas, Context)
     this.DirtyPixelsList = [];
     this.DirtyPixelsArray = [];
 
-    this.SelfGrowth = 0.001;
-    this.NeighborGrowth = 0.05;
+    this.SelfGrowth = 0.002;
+    this.NeighborGrowth = 0.1;
 
     this.ClearRadius = 15;
     this.ClearSmooth = 5;

@@ -335,6 +335,7 @@ function GrowMap(Canvas, Context)
         for (var i = 0; i < this.DirtyPixelsList.length; i++)
         {
             var Element = this.DirtyPixelsList[i];
+            Element.Draw = true;
 
             var GrowthIndex = this.ToGrowthIndex(Element.X, Element.Y);
             var PixelIndex = this.ToPixelIndex(Element.X, Element.Y);
@@ -363,9 +364,13 @@ function GrowMap(Canvas, Context)
         if(this.Growth[i] >= 1)
         {
             this.Growth[i] = 1;
-            this.DirtyPixelsList.splice(DirtyIndex, 1);
-            this.DirtyPixelsArray[i] = false;
-            return;
+            var Element = this.DirtyPixelsList[DirtyIndex];
+            if (Element.Drawn)
+            {
+                this.DirtyPixelsList.splice(DirtyIndex, 1);
+                this.DirtyPixelsArray[i] = false;
+                return;
+            }
         }
 
         var NewValue = this.Growth[i];
@@ -381,8 +386,11 @@ function GrowMap(Canvas, Context)
         NewGrowth += this.GetNeighborGrowth(X - 1, Y - 1, true);
 
         if (NewGrowth == 0) {
-            this.DirtyPixelsList.splice(DirtyIndex, 1);
-            this.DirtyPixelsArray[i] = false;
+            var Element = this.DirtyPixelsList[DirtyIndex];
+            if (Element.Drawn) {
+                this.DirtyPixelsList.splice(DirtyIndex, 1);
+                this.DirtyPixelsArray[i] = false;
+            }
             return;
         }
 
@@ -444,7 +452,7 @@ function GrowMap(Canvas, Context)
             return;
         }
 
-        var NewDirtyPixel = { X: X, Y: Y };
+        var NewDirtyPixel = { X: X, Y: Y , Drawn: false};
         this.DirtyPixelsList.push(NewDirtyPixel);
         this.DirtyPixelsArray[i] = true;
     }
@@ -454,8 +462,11 @@ function GrowMap(Canvas, Context)
         var i = this.ToGrowthIndex(X, Y);
         if (this.Growth[i] <= 0.01) {
             this.Growth[i] = 0;
-            this.DirtyPixelsList.splice(DirtyIndex, 1);
-            this.DirtyPixelsArray[i] = false;
+            var Element = this.DirtyPixelsList[DirtyIndex];
+            if (Element.Drawn) {
+                this.DirtyPixelsList.splice(DirtyIndex, 1);
+                this.DirtyPixelsArray[i] = false;
+            }
             return;
         }
 

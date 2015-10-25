@@ -23,8 +23,10 @@ var Game = {
 
     FixedTimestep: 30,
     GameLoop: null,
-    DefeatTimer: 1000,
+    DefeatVictoryTimer: 1000,
     DefeatCheck: null,
+    VictoryCheck: null,
+
 
     GrowMap: null,
     Background: null,
@@ -40,7 +42,8 @@ var Game = {
     ActiveSkill: null,
 
     PointerDown: false,
-    Defeated : false,
+    Defeated: false,
+    Victory: false,
 
     Init: function()
     {
@@ -63,7 +66,8 @@ var Game = {
         this.Draw();
 
         this.GameLoop = window.setInterval(function () { Game.Tick(); }, this.FixedTimestep);
-        this.DefeatCheck = window.setInterval(function () { Game.CheckForDefeat(); }, this.DefeatTimer);
+        this.DefeatCheck = window.setInterval(function () { Game.CheckForDefeat(); }, this.DefeatVictoryTimer);
+        this.VictoryCheck = window.setInterval(function () { Game.CheckForVictory(); }, this.DefeatVictoryTimer);
     },
 
     Start: function()
@@ -141,10 +145,36 @@ var Game = {
 
         if(this.Defeated)
         {
+            var TextLineTmp = this.Context.lineWidth;
+            this.Context.lineWidth = 5;
+
+            var Text = "Defeat";
+
             this.Context.textAlign = "center";
             this.Context.fillStyle = "red";
+            this.Context.strokeStyle = "black";
             this.Context.font = "bold 10em sans-serif";
-            this.Context.fillText("Defeat", this.Canvas.width/2, this.Canvas.height/2);
+            this.Context.fillText(Text, this.Canvas.width / 2, this.Canvas.height / 2);
+            this.Context.strokeText(Text, this.Canvas.width / 2, this.Canvas.height / 2);
+
+            this.Context.lineWidth = TextLineTmp;
+        }
+
+        if (this.Victory)
+        {
+            var TextLineTmp = this.Context.lineWidth;
+            this.Context.lineWidth = 5;
+
+            var Text = "Victory";
+
+            this.Context.textAlign = "center";
+            this.Context.fillStyle = "green";
+            this.Context.strokeStyle = "black";
+            this.Context.font = "bold 10em sans-serif";
+            this.Context.fillText(Text, this.Canvas.width / 2, this.Canvas.height / 2);
+            this.Context.strokeText(Text, this.Canvas.width / 2, this.Canvas.height / 2);
+
+            this.Context.lineWidth = TextLineTmp;
         }
     },
 
@@ -165,7 +195,28 @@ var Game = {
         {
             this.Defeated = true;
             clearInterval(this.DefeatCheck);
+            clearInterval(this.VictoryCheck);
             console.log("Defeat");
+        }
+    },
+    
+    CheckForVictory: function ()
+    {
+        var Victory = true;
+
+        for (var i = 0; i < this.Degenerator.length; i++) {
+            if (this.Degenerator[i].CheckForOvergrow()) {
+                Victory = false;
+                break;
+            }
+        }
+
+        if (Victory)
+        {
+            this.Victory = true;
+            clearInterval(this.DefeatCheck);
+            clearInterval(this.VictoryCheck);
+            console.log("Victory");
         }
     },
 

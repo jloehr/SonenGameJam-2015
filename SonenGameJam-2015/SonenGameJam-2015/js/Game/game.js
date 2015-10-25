@@ -296,9 +296,8 @@ function GrowMap(Canvas, Context)
     this.DirtyPixelsList = [];
     this.DirtyPixelsArray = [];
 
-    this.SelfGrowth = 1.01;
-    this.DirectNeighborGrowth = 0.005;
-    this.DiagonalNeighborGrowth = 0.001;
+    this.SelfGrowth = 0.001;
+    this.NeighborGrowth = 0.05;
 
     this.ClearRadius = 15;
     this.ClearSmooth = 5;
@@ -369,8 +368,9 @@ function GrowMap(Canvas, Context)
             return;
         }
 
-        var NewGrowth = this.Growth[i] * this.SelfGrowth;
-       
+        var NewValue = this.Growth[i];
+        var NewGrowth = 0;
+        
         NewGrowth += this.GetNeighborGrowth(X + 0, Y - 1, false);
         NewGrowth += this.GetNeighborGrowth(X + 1, Y - 1, true);
         NewGrowth += this.GetNeighborGrowth(X + 1, Y - 0, false);
@@ -380,9 +380,22 @@ function GrowMap(Canvas, Context)
         NewGrowth += this.GetNeighborGrowth(X - 1, Y + 0, false);
         NewGrowth += this.GetNeighborGrowth(X - 1, Y - 1, true);
 
-        this.Growth[i] = NewGrowth;
+        if (NewGrowth == 0) {
+            this.DirtyPixelsList.splice(DirtyIndex, 1);
+            this.DirtyPixelsArray[i] = false;
+            return;
+        }
 
-        if (NewGrowth > 0.05)
+        NewGrowth /= 8;
+        
+        NewValue += NewGrowth * ((1 - NewGrowth) * Math.random()) * this.NeighborGrowth;
+
+        if (NewValue > 0.5)
+        {
+            NewValue += Math.random() * this.SelfGrowth;
+        }
+
+        if (NewValue > 0.05)
         {
             this.MakeDirty(X + 0, Y - 1, true);
             this.MakeDirty(X + 1, Y - 1, true);
@@ -394,11 +407,8 @@ function GrowMap(Canvas, Context)
             this.MakeDirty(X - 1, Y - 1, true);
         }
 
-        if(NewGrowth == 0)
-        {
-            this.DirtyPixelsList.splice(DirtyIndex, 1);
-            this.DirtyPixelsArray[i] = false;
-        }
+        this.Growth[i] = NewValue;
+
     }
 
     this.GetNeighborGrowth = function(X, Y, Diagonal)
@@ -409,7 +419,8 @@ function GrowMap(Canvas, Context)
             return 0;
         }
 
-        return (this.Growth[i] * (Diagonal ? this.DiagonalNeighborGrowth : this.DirectNeighborGrowth));
+        return this.Growth[i];
+        //return (this.Growth[i] * (Diagonal ? this.DiagonalNeighborGrowth : this.DirectNeighborGrowth));
     }
 
     this.MakeDirty = function(X, Y, Seed)
@@ -449,9 +460,9 @@ function GrowMap(Canvas, Context)
             return;
         }
 
-        var NewValue = this.Growth[i] * 0.95;
+        var NewValue = this.Growth[i] - (Math.random() * 0.02);
 
-        if (NewValue < 0.75) {
+        if (NewValue < 0.9) {
             this.MakeDirty(X + 0, Y - 1, false);
             this.MakeDirty(X + 1, Y - 1, false);
             this.MakeDirty(X + 1, Y - 0, false);

@@ -420,7 +420,6 @@ function GrowMap(Canvas, Context)
         }
 
         return this.Growth[i];
-        //return (this.Growth[i] * (Diagonal ? this.DiagonalNeighborGrowth : this.DirectNeighborGrowth));
     }
 
     this.MakeDirty = function(X, Y, Seed)

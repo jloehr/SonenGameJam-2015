@@ -9,6 +9,12 @@
         MaxOvergrowth: 0.75,
         Range: 100,
     },
+
+    Degenerator: {
+        Width: 100,
+        Height: 75,
+        MaxOvergrowth: 0.2,
+    },
 }
 
 var Game = {
@@ -26,6 +32,7 @@ var Game = {
     Buildings: [],
     Towers: [],
     Generators: [],
+    Degenerator: [],
 
     LaserSkill: null,
     TowerBuildSkill: null,
@@ -64,13 +71,20 @@ var Game = {
         var X = Math.round(this.Canvas.width / 2);
         var Y = Math.round(this.Canvas.height / 2);
 
+
+        var NewDegenerator = new Degenerator(X, Y, this.GrowMap)
+        this.Degenerator.push(NewDegenerator);
+        this.Buildings.push(NewDegenerator);
+
+        Y = Math.round(Y + GlobalSettings.Degenerator.Height / 2 + GlobalSettings.Tower.Size / 2 + 10);
         this.GrowMap.ClearAreaWithRangeAndSmooth(X, Y, 100, 35);
 
         var NewTower = new Tower(X, Y, this.GrowMap)
         this.Towers.push(NewTower);
         this.Buildings.push(NewTower);
 
-        var NewGenerator = new Generator(X, Y + GlobalSettings.Tower.Size / 2 + GlobalSettings.Generator.Size / 2 + 10, NewTower, this.GrowMap);
+        Y += GlobalSettings.Tower.Size / 2 + GlobalSettings.Generator.Size / 2 + 10;
+        var NewGenerator = new Generator(X, Y , NewTower, this.GrowMap);
         this.Generators.push(NewGenerator);
         this.Buildings.push(NewGenerator);
     },
@@ -589,6 +603,27 @@ function Generator(X, Y, Tower, GrowMap)
 
     this.Constructor();
 }
+
+function Degenerator(X, Y, GrowMap)
+{
+    this.__proto__ = new Building(X, Y, GlobalSettings.Degenerator.Width, GlobalSettings.Degenerator.Height, GrowMap, GlobalSettings.Degenerator.MaxOvergrowth);
+
+    this.Draw = function (Context) {
+        this.DrawOutline(Context);
+
+        var TextHeight = this.Height / 5;
+
+        Context.textAlign = "center";
+        Context.fillStyle = "black";
+        Context.font = "bold " + TextHeight + "px sans-serif";
+        Context.fillText("Degenerator", this.X, this.Y);
+
+        var HintHeight = this.Height / 7.5;
+        Context.font = HintHeight +"px sans-serif";
+        Context.fillText("Clean Me", this.X, this.Y + TextHeight * 1.2);
+    }
+}
+
 
 function Skill(ButtonID, Parent)
 {

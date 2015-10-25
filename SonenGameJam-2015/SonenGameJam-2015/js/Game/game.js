@@ -230,7 +230,7 @@ var Game = {
         var Victory = true;
 
         for (var i = 0; i < this.Degenerator.length; i++) {
-            if (this.Degenerator[i].CheckForOvergrow(true)) {
+            if (this.Degenerator[i].CheckForOvergrow()) {
                 Victory = false;
                 break;
             }
@@ -558,6 +558,8 @@ function Tower(X,Y, GrowMap)
     this.Range = 150;
 
     this.LazerTarget = null;
+    this.DashLineOffset = 0;
+    this.DashLineSpeed = 2;
 
     this.MaxEnergy = 100;
     this.Energy = this.MaxEnergy;
@@ -600,11 +602,37 @@ function Tower(X,Y, GrowMap)
 
         if (this.LazerTarget)
         {
+            var Size = 10;
+
+            var Gradient = Context.createRadialGradient(this.LazerTarget.X, this.LazerTarget.Y, Size, this.LazerTarget.X, this.LazerTarget.Y, 0);
+            Gradient.addColorStop(1, "orange");
+            Gradient.addColorStop(0, "rgba(255,165,0,0)");
+            Context.fillStyle = Gradient;
+            Context.fillRect(this.LazerTarget.X - Size, this.LazerTarget.Y - Size, Size * 2, Size * 2);
+
+            Context.lineWidth = 2;
             Context.strokeStyle = "orange";
             Context.beginPath()
             Context.moveTo(this.X, this.Y);
             Context.lineTo(this.LazerTarget.X, this.LazerTarget.Y);
             Context.stroke();
+
+            Context.globalAlpha = 0.75;
+
+            Context.setLineDash([5, 2.5]);
+            Context.lineDashOffset = this.DashLineOffset;
+            this.DashLineOffset -= this.DashLineSpeed;
+            Context.strokeStyle = "yellow";
+            Context.beginPath()
+            Context.moveTo(this.X, this.Y);
+            Context.lineTo(this.LazerTarget.X, this.LazerTarget.Y);
+            Context.stroke();
+
+            Context.lineDashOffset = 0;
+            Context.setLineDash([]);
+            Context.globalAlpha = 1;
+            Context.lineWidth = 1;
+
 
             this.LazerTarget = null;
         }
@@ -650,7 +678,11 @@ function Generator(X, Y, Tower, GrowMap)
 
     this.Tower = Tower;
 
-    this.EnergyProduced = 0.2;
+    this.Efficency = 0.2;
+
+    this.DashLineOffset = 0;
+    this.DashLineSpeed = 1;
+    this.EnergyProduced = false;
 
     this.Constructor = function () {
 
@@ -668,18 +700,37 @@ function Generator(X, Y, Tower, GrowMap)
         Context.lineTo(this.X, this.Y);
         Context.stroke();
 
+        if (this.EnergyProduced)
+        {
+            Context.setLineDash([15, 5]);
+            Context.lineDashOffset = this.DashLineOffset;
+            this.DashLineOffset -= this.DashLineSpeed;
+        }
+        else
+        {
+            Context.setLineDash([10, 15]);
+        }
+
         Context.strokeStyle = "lightblue";
         Context.beginPath()
         Context.moveTo(this.X, this.Y);
         Context.lineTo(this.Tower.X, this.Tower.Y);
         Context.stroke();
+        Context.setLineDash([]);
+        Context.lineDashOffset = 0;
+
     }
 
     this.Update = function()
     {
         if (!this.CheckForOvergrow())
         {
-            this.Tower.Energy = Math.min(this.Tower.MaxEnergy, this.Tower.Energy + this.EnergyProduced);
+            this.Tower.Energy = Math.min(this.Tower.MaxEnergy, this.Tower.Energy + this.Efficency);
+            this.EnergyProduced = (this.Tower.Energy < this.Tower.MaxEnergy);
+        }
+        else
+        {
+            this.EnergyProduced = false;
         }
     }
 
